@@ -1,0 +1,2 @@
+from gym_custom.envs.pendulum import QPendulumEnv
+from gym_custom.envs.linearized_pendulum import LinearPendulumEnv
