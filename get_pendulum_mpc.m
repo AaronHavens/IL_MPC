@@ -1,4 +1,4 @@
-function mpc_controller = get_pendulum_mpc()
+function [mpc_controller, Oinf, AG, BG] = get_pendulum_mpc()
 
 g = 10; % gravitational coefficient
 m = 0.15; % mass

@@ -10,8 +10,8 @@ eng = matlab.engine.start_matlab()
 
 env = gym.make('LinearPendulum-v0')
 env_expert = gym.make('LinearPendulum-v0')
-params = torch.load('models/LinearPendulum-v0/IL_mpc_9900.pkl')
-model_expert = eng.get_pendulum_mpc()
+params = torch.load('models/LinearPendulum-v0/IL_mpc_19900.pkl')
+model_expert, S, AG, BG = eng.get_pendulum_mpc(nargout=4)
 
 model = Policy(128, 2, env.action_space)
 model.load_state_dict(params)
@@ -37,18 +37,32 @@ def get_action(x, pi):
 		u = pi(x)
 	return u.detach().numpy()
 
+def get_action_projection(x, pi, S, AG, BG):
+	x_torch = torch.from_numpy(x).float()
+	with torch.no_grad():
+		u = pi(x_torch)
+	u = u.detach().numpy()
+	u_ = matlab.double(u.reshape(1,1).tolist())
+	x_ = matlab.double(x.reshape(2,1).tolist())
+	u_proj = np.array([eng.Project(S, AG, BG, u_, x_)], dtype=np.float32)
+	return u_proj, u
+
 def get_mpc_action(x,pi):
 	x = matlab.double(x.reshape(2,1).tolist())
 	return np.array([eng.evaluate_mpc(pi, x)])
 
-xv_e, yv_e, U_e = MPC_eval(get_mpc_action, model_expert, 40)
-xv, yv, U = MPC_eval(get_action, model, 40)
 
-fig = plt.figure()
-ax = plt.axes(projection='3d')
-ax.scatter3D(xv, yv, U, label='IL')
-ax.scatter3D(xv_e, yv_e, U_e, label='expert')
-plt.legend()
+
+#xv_e, yv_e, U_e = MPC_eval(get_mpc_action, model_expert, 40)
+#xv, yv, U = MPC_eval(get_action, model, 100)
+
+#fig = plt.figure()
+#ax = plt.axes(projection='3d')
+#ax.plot_surface(xv, yv, U, label='IL')
+#ax.plot_surface(xv_e, yv_e, U_e, label='expert')
+#ax.scatter3D(xv, yv, U, label='IL')
+#ax.scatter3D(xv_e, yv_e, U_e, label='expert')
+#plt.legend()
 plt.show()
 T = 200
 x_hist = np.zeros((T, 2))
@@ -63,11 +77,11 @@ x_expert = np.copy(x)
 for i in range(T):
 	x_hist[i,:] = x
 	x_hist_expert[i,:] = x_expert
-	u = get_action(x, model)
+	u, u_ = get_action_projection(x, model, S, AG, BG)
 	u_expert = get_mpc_action(x_expert, model_expert)
 	u_hist[i,:] = u
 	u_hist_expert[i,:] = u_expert
-	print(u_expert, u)
+	print(u_expert, u, u_)
 	x,r,_,done = env.step(u)
 	x_expert,r,_,done_expert = env_expert.step(u_expert)
 	if done or done_expert:

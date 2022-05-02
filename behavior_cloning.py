@@ -53,18 +53,18 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
         self.action_space = action_space
         num_outputs = action_space.shape[0]
-
-        self.linear1 = nn.Linear(num_inputs, hidden_size, bias=True)
-        self.linear2 = nn.Linear(hidden_size, hidden_size, bias=True)
-        self.linear3 = nn.Linear(hidden_size, num_outputs, bias=True)
-
+        bias=True
+        self.linear1 = nn.Linear(num_inputs, hidden_size, bias=bias)
+        self.linear2 = nn.Linear(hidden_size, hidden_size, bias=bias)
+        self.linear3 = nn.Linear(hidden_size, num_outputs, bias=bias)
     def forward(self, inputs):
         x = inputs
-        x = torch.relu(self.linear1(x))
-        x = torch.relu(self.linear2(x))
+        zero = torch.zeros_like(inputs)
+        x = torch.tanh(self.linear1(x))
+        x = torch.tanh(self.linear2(x))
         u = self.linear3(x)
-
-        return u
+        offset = self.linear3(torch.tanh(self.linear2(torch.tanh(self.linear1(zero)))))
+        return u - offset
 
 
 class BehaviorCloning:
